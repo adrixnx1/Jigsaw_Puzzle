@@ -31,7 +31,7 @@ public class Piece {
         return shape;
     }
 
-    private Path createPieceShape(
+    public Path createPieceShape(
             double size,
             boolean topTab, boolean rightTab, boolean bottomTab, boolean leftTab,
             boolean topFlat, boolean rightFlat, boolean bottomFlat, boolean leftFlat) {
