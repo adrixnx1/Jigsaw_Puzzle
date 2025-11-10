@@ -27,7 +27,7 @@ public class GameController {
     }
 
     // Creates the empty puzzle grid (blue background)
-    private void setupBoard() {
+    public void setupBoard() {
         double tileSize = 100;
 
         for (int row = 0; row < 6; row++) {
