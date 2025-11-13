@@ -1,98 +1,123 @@
 package com.finalproject.jigsawproject;
 
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.*;
-import java.util.Random;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.QuadCurveTo;
 
 public class Piece {
-    private final Path shape;
-    private static final Random rand = new Random();
 
-    public Piece(double size, int row, int col, int gridSize) {
-        boolean topFlat = (row == 0);
-        boolean bottomFlat = (row == gridSize - 1);
-        boolean leftFlat = (col == 0);
-        boolean rightFlat = (col == gridSize - 1);
+    private Edge topEdge;
+    private Edge bottomEdge;
+    private Edge leftEdge;
+    private Edge rightEdge;
+    private int size;
 
-        boolean topTab = topFlat ? false : rand.nextBoolean();
-        boolean bottomTab = bottomFlat ? false : rand.nextBoolean();
-        boolean leftTab = leftFlat ? false : rand.nextBoolean();
-        boolean rightTab = rightFlat ? false : rand.nextBoolean();
-
-        this.shape = createPieceShape(size, topTab, rightTab, bottomTab, leftTab,
-                topFlat, rightFlat, bottomFlat, leftFlat);
-
-        this.shape.setFill(Color.hsb(rand.nextInt(360), 0.7, 0.9));
-        this.shape.setStroke(Color.BLACK);
-        this.shape.setStrokeWidth(1.2);
+    public Piece(Edge top, Edge bottom, Edge left, Edge right, int size) {
+        this.topEdge = top;
+        this.bottomEdge = bottom;
+        this.leftEdge = left;
+        this.rightEdge = right;
+        this.size = size;
     }
 
-    public Path getShape() {
-        return shape;
+    public Edge getTopEdge() {
+        return topEdge;
     }
 
-    public Path createPieceShape(
-            double size,
-            boolean topTab, boolean rightTab, boolean bottomTab, boolean leftTab,
-            boolean topFlat, boolean rightFlat, boolean bottomFlat, boolean leftFlat) {
+    public Edge getBottomEdge() {
+        return bottomEdge;
+    }
 
-        double tabSize = size / 4.5;
+    public Edge getLeftEdge() {
+        return leftEdge;
+    }
+
+    public Edge getRightEdge() {
+        return rightEdge;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public Node getShape() {
+
+        double s = size;            // piece size
+        double tab = s * 0.25;      // bump / hole radius
+
         Path path = new Path();
-        path.getElements().add(new MoveTo(0, 0));
+        path.setStroke(Color.BLACK);
+        path.setFill(Color.LIGHTGREEN);
+        path.setStrokeWidth(2);
 
-        // 🔹 Top edge
-        if (topFlat) {
-            path.getElements().add(new LineTo(size, 0));
-        } else if (topTab) {
-            path.getElements().add(new LineTo(size / 3, 0));
-            path.getElements().add(new QuadCurveTo(size / 2, -tabSize, 2 * size / 3, 0));
-            path.getElements().add(new LineTo(size, 0));
-        } else {
-            path.getElements().add(new LineTo(size / 3, 0));
-            path.getElements().add(new QuadCurveTo(size / 2, tabSize, 2 * size / 3, 0));
-            path.getElements().add(new LineTo(size, 0));
+        path.getElements().add(new MoveTo(0,0));
+
+        // TOP EDGE
+        if (topEdge.getType() == EdgeType.FLAT) {
+            path.getElements().add(new LineTo(s,0));
+        } else if (topEdge.getType() == EdgeType.TAB) {
+            path.getElements().add(new LineTo(s/3, 0));
+            path.getElements().add(new QuadCurveTo(s/2, -tab, 2*s/3, 0));
+            path.getElements().add(new LineTo(s,0));
+        } else { // BLANK
+            path.getElements().add(new LineTo(s/3, 0));
+            path.getElements().add(new QuadCurveTo(s/2, tab, 2*s/3, 0));
+            path.getElements().add(new LineTo(s,0));
         }
 
-        // 🔹 Right edge
-        if (rightFlat) {
-            path.getElements().add(new LineTo(size, size));
-        } else if (rightTab) {
-            path.getElements().add(new LineTo(size, size / 3));
-            path.getElements().add(new QuadCurveTo(size + tabSize, size / 2, size, 2 * size / 3));
-            path.getElements().add(new LineTo(size, size));
-        } else {
-            path.getElements().add(new LineTo(size, size / 3));
-            path.getElements().add(new QuadCurveTo(size - tabSize, size / 2, size, 2 * size / 3));
-            path.getElements().add(new LineTo(size, size));
+        // RIGHT EDGE
+        if (rightEdge.getType() == EdgeType.FLAT) {
+            path.getElements().add(new LineTo(s, s));
+        } else if (rightEdge.getType() == EdgeType.TAB) {
+            path.getElements().add(new LineTo(s, s/3));
+            path.getElements().add(new QuadCurveTo(s+tab, s/2, s, 2*s/3));
+            path.getElements().add(new LineTo(s, s));
+        } else { // BLANK
+            path.getElements().add(new LineTo(s, s/3));
+            path.getElements().add(new QuadCurveTo(s-tab, s/2, s, 2*s/3));
+            path.getElements().add(new LineTo(s, s));
         }
 
-        // 🔹 Bottom edge
-        if (bottomFlat) {
-            path.getElements().add(new LineTo(0, size));
-        } else if (bottomTab) {
-            path.getElements().add(new LineTo(2 * size / 3, size));
-            path.getElements().add(new QuadCurveTo(size / 2, size + tabSize, size / 3, size));
-            path.getElements().add(new LineTo(0, size));
-        } else {
-            path.getElements().add(new LineTo(2 * size / 3, size));
-            path.getElements().add(new QuadCurveTo(size / 2, size - tabSize, size / 3, size));
-            path.getElements().add(new LineTo(0, size));
+        // BOTTOM EDGE
+        if (bottomEdge.getType() == EdgeType.FLAT) {
+            path.getElements().add(new LineTo(0, s));
+        } else if (bottomEdge.getType() == EdgeType.TAB) {
+            path.getElements().add(new LineTo(2*s/3, s));
+            path.getElements().add(new QuadCurveTo(s/2, s+tab, s/3, s));
+            path.getElements().add(new LineTo(0, s));
+        } else { // BLANK
+            path.getElements().add(new LineTo(2*s/3, s));
+            path.getElements().add(new QuadCurveTo(s/2, s-tab, s/3, s));
+            path.getElements().add(new LineTo(0, s));
         }
 
-        // 🔹 Left edge
-        if (leftFlat) {
+        // LEFT EDGE
+        if (leftEdge.getType() == EdgeType.FLAT) {
             path.getElements().add(new LineTo(0, 0));
-        } else if (leftTab) {
-            path.getElements().add(new LineTo(0, 2 * size / 3));
-            path.getElements().add(new QuadCurveTo(-tabSize, size / 2, 0, size / 3));
+        } else if (leftEdge.getType() == EdgeType.TAB) {
+            path.getElements().add(new LineTo(0, 2*s/3));
+            path.getElements().add(new QuadCurveTo(-tab, s/2, 0, s/3));
             path.getElements().add(new LineTo(0, 0));
-        } else {
-            path.getElements().add(new LineTo(0, 2 * size / 3));
-            path.getElements().add(new QuadCurveTo(tabSize, size / 2, 0, size / 3));
+        } else { // BLANK
+            path.getElements().add(new LineTo(0, 2*s/3));
+            path.getElements().add(new QuadCurveTo(tab, s/2, 0, s/3));
             path.getElements().add(new LineTo(0, 0));
         }
 
-        path.getElements().add(new ClosePath());
-        return path;
+        // WRAP IN CONTAINER
+        StackPane pane = new StackPane(path);
+        pane.setPrefSize(s + s*0.4, s + s*0.4);
+        pane.setMinSize(s + s*0.4, s + s*0.4);
+        pane.setMaxSize(s + s*0.4, s + s*0.4);
+
+        pane.setStyle("-fx-background-color: transparent;");
+
+        return pane;
     }
+
 }
