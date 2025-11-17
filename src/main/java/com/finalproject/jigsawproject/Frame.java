@@ -6,34 +6,53 @@
 
 package com.finalproject.jigsawproject;
 
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.layout.*;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.stage.Stage;
 
 public class Frame {
+
     private final BorderPane root;
 
-    public Frame(Stage stage){
+    public Frame(Stage stage) {
         this.root = new BorderPane();
 
-        //background color for the overall puzzle area
-        this.root.setBackground(new Background(
-                new BackgroundFill(Color.LIGHTGREY, null, null)
-        ));
+        // background color
+        this.root.setBackground(
+                new Background(
+                        new BackgroundFill(Color.LIGHTGREY, CornerRadii.EMPTY, Insets.EMPTY)
+                )
+        );
 
-        //make the window wide enough to show the tray
-        Scene scene = new Scene(this.root, 900, 700);
+        // top title bar
+        Label title = new Label("Jigsaw Puzzle");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        HBox topBar = new HBox(title);
+        topBar.setAlignment(Pos.CENTER);
+        topBar.setPadding(new Insets(10));
+        root.setTop(topBar);
+
+        Scene scene = new Scene(this.root, 1100, 700);
         stage.setScene(scene);
+        stage.setTitle("Jigsaw Puzzle");
     }
 
-    //adds the puzzle grid in the center and the tray of pieces on the left
-    public void setUpGame(GameController game){
-        this.root.setCenter(game.getGamePanel());
-        BorderPane.setAlignment(game.getGamePanel(), Pos.CENTER);
-        this.root.setLeft(game.getLeftTray());
+    public void setupGame(GameController game) {
+        // center area: board + pieces
+        root.setCenter(game.getGamePanel());
+
+        // left: tray of pieces
+        root.setLeft(game.getLeftTray());
+        BorderPane.setMargin(root.getLeft(), new Insets(10, 10, 10, 10));
+        BorderPane.setMargin(root.getCenter(), new Insets(10, 10, 10, 0));
     }
-
-
 }

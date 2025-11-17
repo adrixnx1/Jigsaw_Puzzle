@@ -8,8 +8,10 @@ public class App extends Application
 
     @Override
     public void start(Stage stage) throws Exception {
-        Frame frame = new Frame(stage);
-        frame.setUpGame(new GameController());
+        GameController game = new GameController();
+Frame frame = new Frame(stage);
+frame.setupGame(game);
+
         stage.setTitle("Jigsaw Puzzle");
         stage.show();
 
