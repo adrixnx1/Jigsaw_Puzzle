@@ -158,9 +158,9 @@ public class Piece {
 
         // Wrap in container
         StackPane pane = new StackPane(path);
-        pane.setPrefSize(s + s*0.4, s + s*0.4);
-        pane.setMinSize(s + s*0.4, s + s*0.4);
-        pane.setMaxSize(s + s*0.4, s + s*0.4);
+        pane.setPrefSize(s, s);
+        pane.setMinSize(s, s);
+        pane.setMaxSize(s, s);
 
         pane.setStyle("-fx-background-color: transparent;");
 

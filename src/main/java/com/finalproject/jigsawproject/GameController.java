@@ -81,7 +81,7 @@ public class GameController {
         // black tray where pieces start
         Pane tray = new Pane();
         tray.setStyle("-fx-background-color: black;");
-        tray.setPrefWidth(pieceSize + 40);
+        tray.setPrefWidth(pieceSize + 10);
         // height will be set after we lay out pieces
 
         // store tray width in scene for drop detection (approximate)
@@ -131,6 +131,9 @@ public class GameController {
                 allPieces.add(piece);
 
                 Node shape = piece.getShape();
+                // scale the piece down to fit inside the tray
+                shape.setScaleX(0.40);
+                shape.setScaleY(0.40);
                 shape.setLayoutX(10);
                 shape.setLayoutY(currentY);
                 currentY += spacing;
@@ -142,7 +145,7 @@ public class GameController {
         }
 
         // make the tray tall enough so all pieces are scrollable
-        tray.setPrefHeight(currentY + pieceSize + 20);
+        tray.setPrefHeight(currentY + 20);
 
         solver = new SolvePuzzle(allPieces);
 
