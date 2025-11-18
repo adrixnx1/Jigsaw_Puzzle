@@ -1,9 +1,3 @@
-//Ashlyn Kasper
-//CSCI3331-001
-//11/08/25
-//This class creates the frame for the Jigsaw Puzzle Game.
-//It places the puzzle grid in the center and adds puzzle pieces to the left side.
-
 package com.finalproject.jigsawproject;
 
 import javafx.geometry.Insets;

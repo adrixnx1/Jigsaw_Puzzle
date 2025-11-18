@@ -170,7 +170,7 @@ public class GameController {
 
     // ----------------- DRAG / DROP HELPERS -----------------
 
-    private void addDragHandlers(Piece piece, Pane tray) {
+    public void addDragHandlers(Piece piece, Pane tray) {
         Node node = piece.getShape();
         final double[] dragDelta = new double[2];
 
@@ -224,7 +224,7 @@ public class GameController {
     }
 
     // Snap a piece to the nearest grid cell on the board
-    private void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
+    public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
         Node node = piece.getShape();
 
         // where is the top-left of the grid in scene coordinates?

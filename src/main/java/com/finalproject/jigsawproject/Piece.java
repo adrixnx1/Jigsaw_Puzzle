@@ -91,7 +91,7 @@ public class Piece {
         return visual;
     }
 
-    private Node createShape() {
+    public Node createShape() {
 
         double s = size;
         double tab = s * 0.25;   // tab/hole radius
