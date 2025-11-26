@@ -30,7 +30,7 @@ public class GameController {
     private SolvePuzzle solver;
 
     // piece size matches tile size so it fits each cell
-    private final int pieceSize = 200;
+    private final int pieceSize = 150;
 
     // approximate width of the tray region in the scene, used for deciding
     // whether a drop happened "on the board"
@@ -81,7 +81,7 @@ public class GameController {
         // black tray where pieces start
         Pane tray = new Pane();
         tray.setStyle("-fx-background-color: black;");
-        tray.setPrefWidth(pieceSize + 10);
+        tray.setPrefWidth(pieceSize + 80);
         // height will be set after we lay out pieces
 
         // store tray width in scene for drop detection (approximate)
@@ -92,7 +92,9 @@ public class GameController {
         boardLayer.getChildren().clear();
 
         double currentY = 10;
-        double spacing = pieceSize + 10;
+        double tab = pieceSize * 0.25;
+        double actualHeight = pieceSize + (tab * 2);
+        double spacing = actualHeight + 20;
 
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
@@ -132,8 +134,8 @@ public class GameController {
 
                 Node shape = piece.getShape();
                 // scale the piece down to fit inside the tray
-                shape.setScaleX(0.40);
-                shape.setScaleY(0.40);
+                //shape.setScaleX(0.40);
+                //shape.setScaleY(0.40);
                 shape.setLayoutX(10);
                 shape.setLayoutY(currentY);
                 currentY += spacing;
@@ -150,7 +152,9 @@ public class GameController {
         solver = new SolvePuzzle(allPieces);
 
         trayScroll = new ScrollPane(tray);
-        trayScroll.setFitToWidth(true);
+        trayScroll.setFitToWidth(false);
+        trayScroll.setPrefViewportWidth(tray.getPrefWidth());
+        trayScroll.setMaxWidth(Double.MAX_VALUE);
         trayScroll.setFitToHeight(false); // vertical scroll
         trayScroll.setPannable(false);
         trayScroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
