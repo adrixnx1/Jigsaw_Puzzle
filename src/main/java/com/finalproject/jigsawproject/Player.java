@@ -2,23 +2,24 @@ package com.finalproject.jigsawproject;
 
 public class Player {
 
-    private String name;
-    private int moveCount;
+    private Piece selectedPiece;
+    private GameController game;
 
-    public Player(String name) {
-        this.name = name;
-        this.moveCount = 0;
+    public Player(GameController game) {
+        this.game = game;
+        this.selectedPiece = null; // nothing selected at start
     }
 
-    public void incrementMoves() {
-        moveCount++;
+    // --- SELECTING A PIECE ---
+    public void selectPiece(Piece piece) {
+        this.selectedPiece = piece;
+        System.out.println("Player selected a piece.");
     }
 
-    public int getMoveCount() {
-        return moveCount;
+    // --- GET THE SELECTED PIECE ---
+    public Piece getSelectedPiece() {
+        return selectedPiece;
     }
 
-    public String getName() {
-        return name;
-    }
+
 }

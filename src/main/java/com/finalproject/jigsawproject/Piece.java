@@ -161,10 +161,14 @@ public class Piece {
         pane.setPrefSize(s, s);
         pane.setMinSize(s, s);
         pane.setMaxSize(s, s);
-
         pane.setStyle("-fx-background-color: transparent;");
-
         return pane;
+    }
+
+    public void rotateClockwise() {
+        Node shape = getShape();
+        double newAngle = (shape.getRotate() + 90) % 360;
+        shape.setRotate(newAngle);
     }
 }
 
