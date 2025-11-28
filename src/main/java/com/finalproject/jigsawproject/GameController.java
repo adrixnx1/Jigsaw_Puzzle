@@ -8,6 +8,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -52,6 +53,13 @@ public class GameController {
         this.gameArea = new StackPane(puzzleBoard, boardLayer);
         this.gameArea.setAlignment(Pos.CENTER);
         this.player = new Player(this);
+        // ⭐ PREVENT StackPane from resizing puzzleBoard
+        puzzleBoard.setPrefSize(pieceSize * gridSize, pieceSize * gridSize);
+        puzzleBoard.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        puzzleBoard.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        // ensure it sits centered but NOT resized
+        StackPane.setAlignment(puzzleBoard, Pos.CENTER);
 
         setupBoard();
     }
@@ -155,6 +163,7 @@ public class GameController {
         solver = new SolvePuzzle(allPieces);
 
         trayScroll = new ScrollPane(tray);
+        trayScroll.setPrefViewportHeight(2000);
         trayScroll.setFitToWidth(false);
         trayScroll.setPrefViewportWidth(tray.getPrefWidth());
         trayScroll.setMaxWidth(Double.MAX_VALUE);
@@ -229,6 +238,10 @@ public class GameController {
         final double[] offset = new double[2];
 
         node.setOnMousePressed(event -> {
+            if (piece.isLocked()){
+                return;
+            }
+
             player.selectPiece(piece);
 
             Point2D pressInParent = node.getParent().sceneToLocal(event.getSceneX(), event.getSceneY());
@@ -239,6 +252,11 @@ public class GameController {
         });
 
         node.setOnMouseDragged(event -> {
+
+            if (piece.isLocked()){
+                return;
+            }
+
             double sceneX = event.getSceneX();
             double sceneY = event.getSceneY();
 
@@ -249,17 +267,42 @@ public class GameController {
             double newY = parentPoint.getY() - offset[1];
 
             // detect moving from tray → board
-            double trayRight = tray.localToScene(tray.getBoundsInLocal()).getMaxX();
+            double trayRight = trayScroll.localToScene(trayScroll.getBoundsInLocal()).getMaxX();
+
             if (sceneX > trayRight && node.getParent() == tray) {
 
-                Point2D boardPoint = boardLayer.sceneToLocal(sceneX, sceneY);
+                // Convert the piece's current position TO SCENE, not the mouse!
+                Bounds nodeBounds = node.localToScene(node.getBoundsInLocal());
+                double pieceSceneX = nodeBounds.getMinX();
+                double pieceSceneY = nodeBounds.getMinY();
+
+                // Convert that scene position into boardLayer coordinates
+                Point2D newLocal = boardLayer.sceneToLocal(pieceSceneX, pieceSceneY);
 
                 tray.getChildren().remove(node);
                 boardLayer.getChildren().add(node);
 
-                offset[0] = boardPoint.getX() - node.getLayoutX();
-                offset[1] = boardPoint.getY() - node.getLayoutY();
+                // Now compute new top-left inside boardLayer
+                Bounds local = node.localToScene(node.getBoundsInLocal());
+                double offsetX = local.getWidth() / 2;
+                double offsetY = local.getHeight() / 2;
+
+                // Set correct layout
+                node.setLayoutX(newLocal.getX() - offsetX);
+                node.setLayoutY(newLocal.getY() - offsetY);
+
+                // Place it in the same visual location
+                //node.setLayoutX(newLocal.getX());
+                //node.setLayoutY(newLocal.getY());
+                double minVisibleX = trayRight - boardLayer.localToScene(0, 0).getX() + 10;
+                if (node.getLayoutX() < minVisibleX) {
+                    node.setLayoutX(minVisibleX);
+                }
+
+                return;
+
             }
+
             Point2D p = node.getParent().sceneToLocal(sceneX, sceneY);
             newX = p.getX() - offset[0];
             newY = p.getY() - offset[1];
@@ -298,6 +341,9 @@ public class GameController {
     }
 
     public void movePieceBackToTray(Piece piece, Pane tray, double sceneX, double sceneY) {
+        if (piece.isLocked()){
+            return;
+        }
         Node node = piece.getShape();
 
         // Remove from board and add back to tray
@@ -343,7 +389,7 @@ public class GameController {
         return b.contains(sceneX, sceneY);
     }
 
-    public boolean isCorrectPlacment(Piece piece, int row, int col){
+    public boolean isCorrectPlacement(Piece piece, int row, int col){
         return piece.getCorrectRow() == row && piece.getCorrectCol() == col;
     }
 
@@ -352,44 +398,156 @@ public class GameController {
     public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
         Node node = piece.getShape();
 
-        // 1. Find board origin IN SCENE COORDINATES
+        // 1. Board position in scene coordinates
         Bounds boardBoundsScene = puzzleBoard.localToScene(puzzleBoard.getBoundsInLocal());
         double boardSceneX = boardBoundsScene.getMinX();
         double boardSceneY = boardBoundsScene.getMinY();
 
-        // 2. Convert mouse drop into board LOCAL coordinates
-        double relX = sceneX - boardSceneX;
-        double relY = sceneY - boardSceneY;
+        Bounds b = node.localToScene(node.getBoundsInLocal());
+        double centerX = b.getMinX() + b.getWidth() / 2;
+        double centerY = b.getMinY() + b.getHeight() / 2;
 
+
+        // 3. Convert to board-relative coordinates
+        double relX = centerX - boardSceneX;
+        double relY = centerY - boardSceneY;
+
+        // 4. Determine cell
         int col = (int)(relX / pieceSize);
         int row = (int)(relY / pieceSize);
 
-        // clamp
         col = Math.max(0, Math.min(gridSize - 1, col));
         row = Math.max(0, Math.min(gridSize - 1, row));
 
-        System.out.println("Trying to place at (" + row + ", " + col + ")");
-        System.out.println("Correct pos = (" + piece.getCorrectRow() + ", " + piece.getCorrectCol() + ")");
-
-        // 3. Check placement
+        // 5. Check correct placement
+        // Must match correct position
         if (row != piece.getCorrectRow() || col != piece.getCorrectCol()) {
-            System.out.println("❌ Wrong spot. Not snapping.");
             return;
         }
 
-        System.out.println("✅ Correct spot!");
+        // Must also match neighbors
+        if (!pieceMatchesNeighbors(piece, row, col)) {
+            return;
+        }
 
-        // 4. Compute correct snap location in SCENE coordinates
+        // 6. Compute target cell position (scene space)
         double targetSceneX = boardSceneX + col * pieceSize;
         double targetSceneY = boardSceneY + row * pieceSize;
 
-        // 5. Convert scene → boardLayer local coordinates
+        // 7. Convert to boardLayer space
         Point2D snapLocal = boardLayer.sceneToLocal(targetSceneX, targetSceneY);
 
-        node.setLayoutX(snapLocal.getX());
-        node.setLayoutY(snapLocal.getY());
+        // 8. Adjust for tabs
+        Bounds localBounds = node.getBoundsInLocal();
+        double offsetX = localBounds.getMinX();
+        double offsetY = localBounds.getMinY();
 
+        // 9. Snap into place
+        node.setLayoutX(snapLocal.getX() - offsetX);
+        node.setLayoutY(snapLocal.getY() - offsetY);
+
+        // Update state
+        snapAgainstNeighbors(node, piece, row, col);
         piece.setCurrentPosition(row, col);
+        piece.lock();
     }
+    private void snapAgainstNeighbors(Node node, Piece piece, int row, int col) {
+
+        double tab = pieceSize * 0.25;
+
+        // ----- SNAP TO TOP -----
+        Piece top = getPieceAt(row - 1, col);
+        if (top != null && top.isLocked() &&
+                Edge.fitsWith(piece.getTopEdge(), top.getBottomEdge())) {
+
+            Node topNode = top.getShape();
+            node.setLayoutY(topNode.getLayoutY() + pieceSize - tab);
+        }
+
+        // ----- SNAP TO BOTTOM -----
+        Piece bottom = getPieceAt(row + 1, col);
+        if (bottom != null && bottom.isLocked() &&
+                Edge.fitsWith(piece.getBottomEdge(), bottom.getTopEdge())) {
+
+            Node bottomNode = bottom.getShape();
+            node.setLayoutY(bottomNode.getLayoutY() - (pieceSize - tab));
+        }
+
+        // ----- SNAP TO LEFT -----
+        Piece left = getPieceAt(row, col - 1);
+        if (left != null && left.isLocked() &&
+                Edge.fitsWith(piece.getLeftEdge(), left.getRightEdge())) {
+
+            Node leftNode = left.getShape();
+            node.setLayoutX(leftNode.getLayoutX() + pieceSize - tab);
+        }
+
+        // ----- SNAP TO RIGHT -----
+        Piece right = getPieceAt(row, col + 1);
+        if (right != null && right.isLocked() &&
+                Edge.fitsWith(piece.getRightEdge(), right.getLeftEdge())) {
+
+            Node rightNode = right.getShape();
+            node.setLayoutX(rightNode.getLayoutX() - (pieceSize - tab));
+        }
+    }
+
+
+    public boolean pieceMatchesNeighbors(Piece piece, int row, int col) {
+
+        // ---- CHECK TOP NEIGHBOR ----
+        if (row > 0) {
+            Piece neighbor = getPieceAt(row - 1, col);
+            if (neighbor != null && neighbor.isLocked()) {
+                // piece top fits neighbor bottom?
+                if (!Edge.fitsWith(piece.getTopEdge(), neighbor.getBottomEdge())) {
+                    return false;
+                }
+            }
+        }
+
+        // ---- CHECK BOTTOM ----
+        if (row < gridSize - 1) {
+            Piece neighbor = getPieceAt(row + 1, col);
+            if (neighbor != null && neighbor.isLocked()) {
+                if (!Edge.fitsWith(piece.getBottomEdge(), neighbor.getTopEdge())) {
+                    return false;
+                }
+            }
+        }
+
+        // ---- CHECK LEFT ----
+        if (col > 0) {
+            Piece neighbor = getPieceAt(row, col - 1);
+            if (neighbor != null && neighbor.isLocked()) {
+                if (!Edge.fitsWith(piece.getLeftEdge(), neighbor.getRightEdge())) {
+                    return false;
+                }
+            }
+        }
+
+        // ---- CHECK RIGHT ----
+        if (col < gridSize - 1) {
+            Piece neighbor = getPieceAt(row, col + 1);
+            if (neighbor != null && neighbor.isLocked()) {
+                if (!Edge.fitsWith(piece.getRightEdge(), neighbor.getLeftEdge())) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public Piece getPieceAt(int row, int col) {
+        for (Piece p : allPieces) {
+            if (p.isLocked() && p.getCurrentRow() == row && p.getCurrentCol() == col) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+
 }
 

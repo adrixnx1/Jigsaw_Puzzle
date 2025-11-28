@@ -28,6 +28,8 @@ public class Piece {
     // Cache the shape so we don't rebuild it
     private Node visual;
 
+    private boolean locked = false;
+
     public Piece(Edge top, Edge bottom, Edge left, Edge right, int size) {
         this.topEdge = top;
         this.bottomEdge = bottom;
@@ -170,6 +172,23 @@ public class Piece {
         double newAngle = (shape.getRotate() + 90) % 360;
         shape.setRotate(newAngle);
     }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void lock() {
+        this.locked = true;
+    }
+
+    public int getCurrentCol() {
+        return  currentCol;
+    }
+
+    public int getCurrentRow() {
+        return  currentRow;
+    }
+
 }
 
 
