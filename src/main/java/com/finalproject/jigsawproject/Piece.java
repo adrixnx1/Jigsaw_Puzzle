@@ -168,6 +168,9 @@ public class Piece {
     }
 
     public void rotateClockwise() {
+        if(locked){
+            return;
+        }
         Node shape = getShape();
         double newAngle = (shape.getRotate() + 90) % 360;
         shape.setRotate(newAngle);
