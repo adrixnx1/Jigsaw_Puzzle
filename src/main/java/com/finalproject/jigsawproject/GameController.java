@@ -52,7 +52,7 @@ public class GameController {
 
         this.gameArea = new StackPane(puzzleBoard, boardLayer);
         this.gameArea.setAlignment(Pos.CENTER);
-        this.player = new Player(this);
+        this.player = new Player(null,this);
         // PREVENT StackPane from resizing puzzleBoard
         puzzleBoard.setPrefSize(pieceSize * gridSize, pieceSize * gridSize);
         puzzleBoard.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
