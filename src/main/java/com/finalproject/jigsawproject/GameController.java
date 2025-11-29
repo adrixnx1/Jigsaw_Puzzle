@@ -14,6 +14,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class GameController {
@@ -29,6 +30,7 @@ public class GameController {
     private Player player;
     // tracking player + all pieces + solver
     private final List<Piece> allPieces = new ArrayList<>();
+    private  int randomRotation;
     //private final Player player = new Player("Player 1");
     private SolvePuzzle solver;
 
@@ -86,45 +88,42 @@ public class GameController {
     // Builds left tray with all pieces
     public ScrollPane getLeftTray() {
 
-        int N = gridSize;     // N×N puzzle
+        int N = gridSize;
 
-        // black tray where pieces start
         Pane tray = new Pane();
         tray.setStyle("-fx-background-color: black;");
         tray.setPrefWidth(pieceSize + 80);
-        // height will be set after we lay out pieces
 
-        // store tray width in scene for drop detection (approximate)
         traySceneWidth = tray.getPrefWidth() + 20;
 
         Piece[][] pieces = new Piece[N][N];
         allPieces.clear();
         boardLayer.getChildren().clear();
 
-        double currentY = 10;
         double tab = pieceSize * 0.25;
         double actualHeight = pieceSize + (tab * 2);
         double spacing = actualHeight + 20;
 
+        double currentY = 10;
+
+        // ---------------------------------------------------
+        // 1) BUILD ALL PIECES (original logic)
+        // ---------------------------------------------------
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
 
-                // ----- TOP -----
                 EdgeType topType;
                 if (r == 0) topType = EdgeType.FLAT;
                 else topType = opposite(pieces[r - 1][c].getBottomEdge().getType());
 
-                // ----- LEFT -----
                 EdgeType leftType;
                 if (c == 0) leftType = EdgeType.FLAT;
                 else leftType = opposite(pieces[r][c - 1].getRightEdge().getType());
 
-                // ----- RIGHT -----
                 EdgeType rightType;
                 if (c == N - 1) rightType = EdgeType.FLAT;
                 else rightType = randomTabBlank();
 
-                // ----- BOTTOM -----
                 EdgeType bottomType;
                 if (r == N - 1) bottomType = EdgeType.FLAT;
                 else bottomType = randomTabBlank();
@@ -137,26 +136,41 @@ public class GameController {
                         pieceSize
                 );
 
-                //piece.setCorrectPosition(r, c);
+                //assign the true correct position
+                piece.setCorrectPosition(r, c);
 
+                //random rotation
+                randomRotation = (int)(Math.random() * 4);
+                for (int i = 0; i < randomRotation; i++) {
+                    piece.rotateClockwise();
+                }
                 pieces[r][c] = piece;
                 allPieces.add(piece);
-
-                Node shape = piece.getShape();
-                // scale the piece down to fit inside the tray
-                //shape.setScaleX(0.40);
-                //shape.setScaleY(0.40);
-                shape.setLayoutX(10);
-                shape.setLayoutY(currentY);
-                currentY += spacing;
-
-                addDragHandlers(piece, tray);
-
-                tray.getChildren().add(shape);
             }
         }
 
-        // make the tray tall enough so all pieces are scrollable
+        // ----------------------------------------------
+        // 2) SHUFFLE PIECES
+        // ----------------------------------------------
+        Collections.shuffle(allPieces);
+
+        // ----------------------------------------------
+        // 3) CLEAR TRAY AND PLACE PIECES IN NEW ORDER
+        // ----------------------------------------------
+        tray.getChildren().clear();
+        currentY = 10;
+
+        for (Piece piece : allPieces) {
+
+            Node shape = piece.getShape();
+            shape.setLayoutX(10);
+            shape.setLayoutY(currentY);
+            currentY += spacing;
+
+            addDragHandlers(piece, tray);
+            tray.getChildren().add(shape);
+        }
+
         tray.setPrefHeight(currentY + 20);
 
         solver = new SolvePuzzle(allPieces);
@@ -166,13 +180,14 @@ public class GameController {
         trayScroll.setFitToWidth(false);
         trayScroll.setPrefViewportWidth(tray.getPrefWidth());
         trayScroll.setMaxWidth(Double.MAX_VALUE);
-        trayScroll.setFitToHeight(false); // vertical scroll
+        trayScroll.setFitToHeight(false);
         trayScroll.setPannable(false);
         trayScroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 
         assignCorrectPositions();
         return trayScroll;
     }
+
 
     public void assignCorrectPositions() {
 
@@ -212,9 +227,6 @@ public class GameController {
             else {
                 p.setCorrectPosition(1, 1);
             }
-
-            System.out.println("Correct piece assigned: (" +
-                    p.getCorrectRow() + "," + p.getCorrectCol() + ")");
         }
     }
 
@@ -388,11 +400,6 @@ public class GameController {
         return b.contains(sceneX, sceneY);
     }
 
-    public boolean isCorrectPlacement(Piece piece, int row, int col){
-        return piece.getCorrectRow() == row && piece.getCorrectCol() == col;
-    }
-
-
     // Snap a piece to the nearest grid cell on the board
     public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
         Node node = piece.getShape();
@@ -413,6 +420,10 @@ public class GameController {
         if (row != piece.getCorrectRow() || col != piece.getCorrectCol()) {
             return;
         }
+        int currentRot = ((int) node.getRotate()) % 360;
+        if (currentRot < 0) currentRot += 360;
+
+        if (currentRot != piece.getCorrectRotation()) return;
 
         // Convert top-left of target cell from puzzleBoard → boardLayer
         Point2D topLeftInBoardLayer =

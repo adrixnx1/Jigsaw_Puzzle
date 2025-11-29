@@ -13,13 +13,5 @@ public class Player {
     // --- SELECTING A PIECE ---
     public void selectPiece(Piece piece) {
         this.selectedPiece = piece;
-        System.out.println("Player selected a piece.");
     }
-
-    // --- GET THE SELECTED PIECE ---
-    public Piece getSelectedPiece() {
-        return selectedPiece;
-    }
-
-
 }

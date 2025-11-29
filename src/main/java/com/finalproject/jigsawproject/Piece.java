@@ -30,6 +30,7 @@ public class Piece {
     private Node visual;
 
     private boolean locked = false;
+    private int correctRotation = 0;
 
     public Piece(Edge top, Edge bottom, Edge left, Edge right, int size) {
         this.topEdge = top;
@@ -186,14 +187,9 @@ public class Piece {
         this.locked = true;
     }
 
-    public int getCurrentCol() {
-        return  currentCol;
+    public int getCorrectRotation() {
+        return correctRotation;
     }
-
-    public int getCurrentRow() {
-        return  currentRow;
-    }
-
 }
 
 
