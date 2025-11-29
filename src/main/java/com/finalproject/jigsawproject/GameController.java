@@ -53,11 +53,10 @@ public class GameController {
         this.gameArea = new StackPane(puzzleBoard, boardLayer);
         this.gameArea.setAlignment(Pos.CENTER);
         this.player = new Player(this);
-        // ⭐ PREVENT StackPane from resizing puzzleBoard
+        // PREVENT StackPane from resizing puzzleBoard
         puzzleBoard.setPrefSize(pieceSize * gridSize, pieceSize * gridSize);
         puzzleBoard.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         puzzleBoard.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-
         // ensure it sits centered but NOT resized
         StackPane.setAlignment(puzzleBoard, Pos.CENTER);
 
@@ -188,11 +187,11 @@ public class GameController {
             if (topFlat && leftFlat) {
                 p.setCorrectPosition(0, 0);       // top-left corner
             } else if (topFlat && rightFlat) {
-                p.setCorrectPosition(0, gridSize-1);  // top-right corner
+                p.setCorrectPosition(0, 2);  // top-right corner
             } else if (bottomFlat && leftFlat) {
-                p.setCorrectPosition(gridSize-1, 0); // bottom-left
+                p.setCorrectPosition(2, 0); // bottom-left
             } else if (bottomFlat && rightFlat) {
-                p.setCorrectPosition(gridSize-1, gridSize-1); // bottom-right
+                p.setCorrectPosition(2, 2); // bottom-right
             }
 
             // ----- EDGES -----
@@ -398,59 +397,37 @@ public class GameController {
     public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
         Node node = piece.getShape();
 
-        // 1. Board position in scene coordinates
-        Bounds boardBoundsScene = puzzleBoard.localToScene(puzzleBoard.getBoundsInLocal());
-        double boardSceneX = boardBoundsScene.getMinX();
-        double boardSceneY = boardBoundsScene.getMinY();
+        // Convert scene -> puzzle board (the blue grid)
+        Point2D boardPoint = puzzleBoard.sceneToLocal(sceneX, sceneY);
 
-        Bounds b = node.localToScene(node.getBoundsInLocal());
-        double centerX = b.getMinX() + b.getWidth() / 2;
-        double centerY = b.getMinY() + b.getHeight() / 2;
+        // Compute row/col
+        int col = (int)(boardPoint.getX() / pieceSize);
+        int row = (int)(boardPoint.getY() / pieceSize);
 
+        // Keep inside grid
+        if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) {
+            return;
+        }
 
-        // 3. Convert to board-relative coordinates
-        double relX = centerX - boardSceneX;
-        double relY = centerY - boardSceneY;
-
-        // 4. Determine cell
-        int col = (int)(relX / pieceSize);
-        int row = (int)(relY / pieceSize);
-
-        col = Math.max(0, Math.min(gridSize - 1, col));
-        row = Math.max(0, Math.min(gridSize - 1, row));
-
-        // 5. Check correct placement
         // Must match correct position
         if (row != piece.getCorrectRow() || col != piece.getCorrectCol()) {
             return;
         }
 
-        // Must also match neighbors
-        if (!pieceMatchesNeighbors(piece, row, col)) {
-            return;
-        }
+        // Convert top-left of target cell from puzzleBoard → boardLayer
+        Point2D topLeftInBoardLayer =
+                boardLayer.sceneToLocal(puzzleBoard.localToScene(col * pieceSize, row * pieceSize));
 
-        // 6. Compute target cell position (scene space)
-        double targetSceneX = boardSceneX + col * pieceSize;
-        double targetSceneY = boardSceneY + row * pieceSize;
+        // Snap
+        node.setLayoutX(topLeftInBoardLayer.getX());
+        node.setLayoutY(topLeftInBoardLayer.getY());
 
-        // 7. Convert to boardLayer space
-        Point2D snapLocal = boardLayer.sceneToLocal(targetSceneX, targetSceneY);
-
-        // 8. Adjust for tabs
-        Bounds localBounds = node.getBoundsInLocal();
-        double offsetX = localBounds.getMinX();
-        double offsetY = localBounds.getMinY();
-
-        // 9. Snap into place
-        node.setLayoutX(snapLocal.getX() - offsetX);
-        node.setLayoutY(snapLocal.getY() - offsetY);
-
-        // Update state
-        snapAgainstNeighbors(node, piece, row, col);
         piece.setCurrentPosition(row, col);
         piece.lock();
     }
+
+
+    /*
     private void snapAgainstNeighbors(Node node, Piece piece, int row, int col) {
 
         double tab = pieceSize * 0.25;
@@ -547,7 +524,7 @@ public class GameController {
         }
         return null;
     }
-
+*/
 
 }
 

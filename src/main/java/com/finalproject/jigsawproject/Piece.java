@@ -1,6 +1,7 @@
 package com.finalproject.jigsawproject;
 
 import javafx.scene.Node;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.LineTo;
@@ -159,11 +160,12 @@ public class Piece {
         }
 
         // Wrap in container
-        StackPane pane = new StackPane(path);
+        Pane pane = new Pane();
         pane.setPrefSize(s, s);
         pane.setMinSize(s, s);
         pane.setMaxSize(s, s);
         pane.setStyle("-fx-background-color: transparent;");
+        pane.getChildren().add(path);
         return pane;
     }
 
