@@ -114,19 +114,19 @@ public class GameController {
 
                 EdgeType topType;
                 if (r == 0) topType = EdgeType.FLAT;
-                else topType = opposite(pieces[r - 1][c].getBottomEdge().getType());
+                else topType = Edge.opposite(pieces[r - 1][c].getBottomEdge().getType());
 
                 EdgeType leftType;
                 if (c == 0) leftType = EdgeType.FLAT;
-                else leftType = opposite(pieces[r][c - 1].getRightEdge().getType());
+                else leftType = Edge.opposite(pieces[r][c - 1].getRightEdge().getType());
 
                 EdgeType rightType;
                 if (c == N - 1) rightType = EdgeType.FLAT;
-                else rightType = randomTabBlank();
+                else rightType = Edge.randomTabBlank();
 
                 EdgeType bottomType;
                 if (r == N - 1) bottomType = EdgeType.FLAT;
-                else bottomType = randomTabBlank();
+                else bottomType = Edge.randomTabBlank();
 
                 Piece piece = new Piece(
                         new Edge(topType),
@@ -173,7 +173,7 @@ public class GameController {
 
         tray.setPrefHeight(currentY + 20);
 
-        solver = new SolvePuzzle(allPieces);
+        solver = new SolvePuzzle(allPieces,gridSize);
 
         trayScroll = new ScrollPane(tray);
         trayScroll.setPrefViewportHeight(2000);
@@ -231,15 +231,7 @@ public class GameController {
     }
 
 
-    public EdgeType randomTabBlank() {
-        return Math.random() < 0.5 ? EdgeType.TAB : EdgeType.BLANK;
-    }
 
-    public EdgeType opposite(EdgeType e) {
-        if (e == EdgeType.TAB) return EdgeType.BLANK;
-        if (e == EdgeType.BLANK) return EdgeType.TAB;
-        return EdgeType.FLAT;
-    }
 
     // ----------------- DRAG / DROP HELPERS -----------------
 
@@ -435,6 +427,7 @@ public class GameController {
 
         piece.setCurrentPosition(row, col);
         piece.lock();
+        solver.setPiece(row,col,piece);
     }
 
 

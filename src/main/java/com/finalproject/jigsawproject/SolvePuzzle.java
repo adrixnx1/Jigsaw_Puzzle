@@ -5,9 +5,15 @@ import java.util.List;
 public class SolvePuzzle {
 
     private List<Piece> pieces;
+    private Piece[][] board;
 
-    public SolvePuzzle(List<Piece> pieces) {
+    public SolvePuzzle(List<Piece> pieces,int gridSize) {
         this.pieces = pieces;
+        this.board = new Piece[gridSize][gridSize];
+    }
+
+    public void setPiece(int row,int col,Piece piece){
+        board[row][col] = piece;
     }
 
     public boolean isSolved() {
