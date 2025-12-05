@@ -25,6 +25,8 @@ public class Piece {
     // Current placed location (updated when dropped)
     private int currentRow = -1;
     private int currentCol = -1;
+    private int groupId = -1;
+
 
     // Cache the shape so we don't rebuild it
     private Node visual;
@@ -189,6 +191,14 @@ public class Piece {
 
     public int getCorrectRotation() {
         return correctRotation;
+    }
+
+    public int getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(int id) {
+        this.groupId = id;
     }
 }
 

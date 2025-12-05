@@ -4,6 +4,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.layout.GridPane;
@@ -228,6 +229,13 @@ public class GameController {
                 p.setCorrectPosition(1, 1);
             }
         }
+        //FOR NOW
+        for (int i = 0; i < allPieces.size(); i++) {
+            Piece p = allPieces.get(i);
+            int pieceNumber = i + 1;
+            System.out.println("Piece " + pieceNumber + " assigned to ("
+                    + p.getCorrectRow() + "," + p.getCorrectCol() + ")");
+        }
     }
 
 
@@ -319,9 +327,27 @@ public class GameController {
                 newY = Math.max(0, Math.min(maxY, newY));
             }
 
-            // IMPORTANT: layoutX/Y ONLY — NEVER translate
-            node.setLayoutX(newX);
-            node.setLayoutY(newY);
+            int gid = piece.getGroupId();
+
+            if (gid == -1) {
+                // move only this piece
+                node.setLayoutX(newX);
+                node.setLayoutY(newY);
+            } else {
+                // move entire group
+                double deltaX = newX - node.getLayoutX();
+                double deltaY = newY - node.getLayoutY();
+
+                for (Piece groupedPiece : allPieces) {
+                    if (groupedPiece.getGroupId() == gid) {
+                        Node n = groupedPiece.getShape();
+                        n.setLayoutX(n.getLayoutX() + deltaX);
+                        n.setLayoutY(n.getLayoutY() + deltaY);
+                    }
+                }
+
+            }
+
         });
 
         node.setOnMouseReleased(event -> {
@@ -339,6 +365,7 @@ public class GameController {
                 return;
             }
 
+            tryNeighborSnap(piece);
             snapPieceToBoard(piece, sceneX, sceneY);
         });
     }
@@ -417,118 +444,168 @@ public class GameController {
 
         if (currentRot != piece.getCorrectRotation()) return;
 
-        // Convert top-left of target cell from puzzleBoard → boardLayer
-        Point2D topLeftInBoardLayer =
-                boardLayer.sceneToLocal(puzzleBoard.localToScene(col * pieceSize, row * pieceSize));
-
-        // Snap
-        node.setLayoutX(topLeftInBoardLayer.getX());
-        node.setLayoutY(topLeftInBoardLayer.getY());
-
         piece.setCurrentPosition(row, col);
-        piece.lock();
-        solver.setPiece(row,col,piece);
-    }
 
-
-    /*
-    private void snapAgainstNeighbors(Node node, Piece piece, int row, int col) {
-
-        double tab = pieceSize * 0.25;
-
-        // ----- SNAP TO TOP -----
-        Piece top = getPieceAt(row - 1, col);
-        if (top != null && top.isLocked() &&
-                Edge.fitsWith(piece.getTopEdge(), top.getBottomEdge())) {
-
-            Node topNode = top.getShape();
-            node.setLayoutY(topNode.getLayoutY() + pieceSize - tab);
+        if (piece.getGroupId() == -1) {
+            piece.setGroupId(piece.hashCode());   // Assign group if not grouped yet
         }
 
-        // ----- SNAP TO BOTTOM -----
-        Piece bottom = getPieceAt(row + 1, col);
-        if (bottom != null && bottom.isLocked() &&
-                Edge.fitsWith(piece.getBottomEdge(), bottom.getTopEdge())) {
+        int gid = piece.getGroupId();
 
-            Node bottomNode = bottom.getShape();
-            node.setLayoutY(bottomNode.getLayoutY() - (pieceSize - tab));
+        // LOCK + PERFECTLY ALIGN EVERY PIECE IN THE GROUP
+        for (Piece gp : allPieces) {
+
+            if (gp.getGroupId() == gid) {
+
+                int r = gp.getCorrectRow();
+                int c = gp.getCorrectCol();
+
+                // Convert puzzle grid → boardLayer
+                Point2D target = boardLayer.sceneToLocal(
+                        puzzleBoard.localToScene(c * pieceSize, r * pieceSize)
+                );
+
+                Node gNode = gp.getShape();
+                gNode.setLayoutX(target.getX());
+                gNode.setLayoutY(target.getY());
+
+                gp.lock();
+            }
         }
 
-        // ----- SNAP TO LEFT -----
-        Piece left = getPieceAt(row, col - 1);
-        if (left != null && left.isLocked() &&
-                Edge.fitsWith(piece.getLeftEdge(), left.getRightEdge())) {
+        solver.setPiece(row, col, piece);
 
-            Node leftNode = left.getShape();
-            node.setLayoutX(leftNode.getLayoutX() + pieceSize - tab);
-        }
-
-        // ----- SNAP TO RIGHT -----
-        Piece right = getPieceAt(row, col + 1);
-        if (right != null && right.isLocked() &&
-                Edge.fitsWith(piece.getRightEdge(), right.getLeftEdge())) {
-
-            Node rightNode = right.getShape();
-            node.setLayoutX(rightNode.getLayoutX() - (pieceSize - tab));
+        if(solver.isSolved()){
+            gameOver();
         }
     }
+    private static final double SNAP_DISTANCE = 25;  // how close pieces must be to snap
 
+    public void tryNeighborSnap(Piece piece) {
+        Node node = piece.getShape();
 
-    public boolean pieceMatchesNeighbors(Piece piece, int row, int col) {
+        for (Piece other : allPieces) {
+            if (other == piece) continue;
 
-        // ---- CHECK TOP NEIGHBOR ----
-        if (row > 0) {
-            Piece neighbor = getPieceAt(row - 1, col);
-            if (neighbor != null && neighbor.isLocked()) {
-                // piece top fits neighbor bottom?
-                if (!Edge.fitsWith(piece.getTopEdge(), neighbor.getBottomEdge())) {
-                    return false;
+            Node oNode = other.getShape();
+
+            // Check LEFT edge attachment
+            double dx = oNode.getLayoutX() + pieceSize - node.getLayoutX();
+            double dy = Math.abs(oNode.getLayoutY() - node.getLayoutY());
+
+            if (Math.abs(dx) < SNAP_DISTANCE && dy < SNAP_DISTANCE) {
+                if (Edge.fitsWith(piece.getLeftEdge(), other.getRightEdge())) {
+                    node.setLayoutX(oNode.getLayoutX() + pieceSize);
+                    node.setLayoutY(oNode.getLayoutY());
+                    if (!other.isLocked() && !piece.isLocked()) {
+                        mergeGroups(piece, other);
+                    }
+                    return;
+                }
+            }
+
+            // Check RIGHT edge attachment
+            dx = node.getLayoutX() + pieceSize - oNode.getLayoutX();
+            dy = Math.abs(node.getLayoutY() - oNode.getLayoutY());
+
+            if (Math.abs(dx) < SNAP_DISTANCE && dy < SNAP_DISTANCE) {
+                if (Edge.fitsWith(piece.getRightEdge(), other.getLeftEdge())) {
+                    node.setLayoutX(oNode.getLayoutX() - pieceSize);
+                    node.setLayoutY(oNode.getLayoutY());
+                    if (!other.isLocked() && !piece.isLocked()) {
+                        mergeGroups(piece, other);
+                    }
+                    return;
+                }
+            }
+
+            // Check TOP edge attachment
+            dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
+            dy = oNode.getLayoutY() + pieceSize - node.getLayoutY();
+
+            if (dx < SNAP_DISTANCE && Math.abs(dy) < SNAP_DISTANCE) {
+                if (Edge.fitsWith(piece.getTopEdge(), other.getBottomEdge())) {
+                    node.setLayoutX(oNode.getLayoutX());
+                    node.setLayoutY(oNode.getLayoutY() + pieceSize);
+                    if (!other.isLocked() && !piece.isLocked()) {
+                        mergeGroups(piece, other);
+                    }
+                    return;
+                }
+            }
+
+            // Check BOTTOM edge attachment
+            dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
+            dy = node.getLayoutY() + pieceSize - oNode.getLayoutY();
+
+            if (dx < SNAP_DISTANCE && Math.abs(dy) < SNAP_DISTANCE) {
+                if (Edge.fitsWith(piece.getBottomEdge(), other.getTopEdge())) {
+                    node.setLayoutX(oNode.getLayoutX());
+                    node.setLayoutY(oNode.getLayoutY() - pieceSize);
+                    if (!other.isLocked() && !piece.isLocked()) {
+                        mergeGroups(piece, other);
+                    }
+                    return;
                 }
             }
         }
-
-        // ---- CHECK BOTTOM ----
-        if (row < gridSize - 1) {
-            Piece neighbor = getPieceAt(row + 1, col);
-            if (neighbor != null && neighbor.isLocked()) {
-                if (!Edge.fitsWith(piece.getBottomEdge(), neighbor.getTopEdge())) {
-                    return false;
-                }
-            }
-        }
-
-        // ---- CHECK LEFT ----
-        if (col > 0) {
-            Piece neighbor = getPieceAt(row, col - 1);
-            if (neighbor != null && neighbor.isLocked()) {
-                if (!Edge.fitsWith(piece.getLeftEdge(), neighbor.getRightEdge())) {
-                    return false;
-                }
-            }
-        }
-
-        // ---- CHECK RIGHT ----
-        if (col < gridSize - 1) {
-            Piece neighbor = getPieceAt(row, col + 1);
-            if (neighbor != null && neighbor.isLocked()) {
-                if (!Edge.fitsWith(piece.getRightEdge(), neighbor.getLeftEdge())) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
     }
 
-    public Piece getPieceAt(int row, int col) {
+    public void mergeGroups(Piece a, Piece b) {
+        int groupA = a.getGroupId();
+        int groupB = b.getGroupId();
+
+        if (groupA == -1 && groupB == -1) {
+            // both ungrouped → assign same id
+            int newGroup = a.hashCode();
+            a.setGroupId(newGroup);
+            b.setGroupId(newGroup);
+            return;
+        }
+
+        if (groupA == -1) {
+            a.setGroupId(groupB);
+            return;
+        }
+
+        if (groupB == -1) {
+            b.setGroupId(groupA);
+            return;
+        }
+
+        // both have groups → merge them
+        int merged = Math.min(groupA, groupB);
+
         for (Piece p : allPieces) {
-            if (p.isLocked() && p.getCurrentRow() == row && p.getCurrentCol() == col) {
-                return p;
+            if (p.getGroupId() == groupA || p.getGroupId() == groupB) {
+                p.setGroupId(merged);
             }
         }
-        return null;
     }
-*/
+    public void gameOver() {
+        Label label = new Label("Congratulations! You have solved the puzzle.");
+
+        label.setStyle(
+                "-fx-font-size: 36px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: black;" +
+                        "-fx-background-color: #ffffff;" +
+                        "-fx-padding: 20px;" +
+                        "-fx-background-radius: 10px;"
+        );
+
+        StackPane overlay = new StackPane(label);
+        overlay.setAlignment(Pos.CENTER);
+
+        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
+
+        overlay.setPrefSize(gameArea.getWidth(), gameArea.getHeight());
+
+        // VERY IMPORTANT: add overlay to the gameArea
+        gameArea.getChildren().add(overlay);
+        overlay.toFront();
+    }
+
 
 }
 
