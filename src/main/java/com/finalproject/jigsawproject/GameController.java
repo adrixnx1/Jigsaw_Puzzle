@@ -35,6 +35,7 @@ public class GameController {
     //private final Player player = new Player("Player 1");
     private SolvePuzzle solver;
 
+    private Snaps snaps;
     // piece size matches tile size so it fits each cell
     private final int pieceSize = 150;
 
@@ -175,6 +176,7 @@ public class GameController {
         tray.setPrefHeight(currentY + 20);
 
         solver = new SolvePuzzle(allPieces,gridSize);
+        snaps = new Snaps(allPieces,puzzleBoard,boardLayer,solver,gridSize,pieceSize,this);
 
         trayScroll = new ScrollPane(tray);
         trayScroll.setPrefViewportHeight(2000);
@@ -365,8 +367,8 @@ public class GameController {
                 return;
             }
 
-            tryNeighborSnap(piece);
-            snapPieceToBoard(piece, sceneX, sceneY);
+            snaps.tryNeighborSnap(piece);
+            snaps.snapPieceToBoard(piece, sceneX, sceneY);
         });
     }
 
@@ -419,169 +421,6 @@ public class GameController {
         return b.contains(sceneX, sceneY);
     }
 
-    // Snap a piece to the nearest grid cell on the board
-    public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
-        Node node = piece.getShape();
-
-        // Convert scene -> puzzle board (the blue grid)
-        Point2D boardPoint = puzzleBoard.sceneToLocal(sceneX, sceneY);
-
-        // Compute row/col
-        int col = (int)(boardPoint.getX() / pieceSize);
-        int row = (int)(boardPoint.getY() / pieceSize);
-
-        // Keep inside grid
-        if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) {
-            return;
-        }
-
-        // Must match correct position
-        if (row != piece.getCorrectRow() || col != piece.getCorrectCol()) {
-            return;
-        }
-        int currentRot = ((int) node.getRotate()) % 360;
-        if (currentRot < 0) currentRot += 360;
-
-        if (currentRot != piece.getCorrectRotation()) return;
-
-        piece.setCurrentPosition(row, col);
-
-        if (piece.getGroupId() == -1) {
-            piece.setGroupId(piece.hashCode());   // Assign group if not grouped yet
-        }
-
-        int gid = piece.getGroupId();
-
-        // LOCK + PERFECTLY ALIGN EVERY PIECE IN THE GROUP
-        for (Piece gp : allPieces) {
-
-            if (gp.getGroupId() == gid) {
-
-                int r = gp.getCorrectRow();
-                int c = gp.getCorrectCol();
-
-                // Convert puzzle grid → boardLayer
-                Point2D target = boardLayer.sceneToLocal(
-                        puzzleBoard.localToScene(c * pieceSize, r * pieceSize)
-                );
-
-                Node gNode = gp.getShape();
-                gNode.setLayoutX(target.getX());
-                gNode.setLayoutY(target.getY());
-
-                gp.lock();
-            }
-        }
-
-        solver.setPiece(row, col, piece);
-
-        if(solver.isSolved()){
-            gameOver();
-        }
-    }
-    private static final double SNAP_DISTANCE = 25;  // how close pieces must be to snap
-
-    public void tryNeighborSnap(Piece piece) {
-        Node node = piece.getShape();
-
-        for (Piece other : allPieces) {
-            if (other == piece) continue;
-
-            Node oNode = other.getShape();
-
-            // Check LEFT edge attachment
-            double dx = oNode.getLayoutX() + pieceSize - node.getLayoutX();
-            double dy = Math.abs(oNode.getLayoutY() - node.getLayoutY());
-
-            if (Math.abs(dx) < SNAP_DISTANCE && dy < SNAP_DISTANCE) {
-                if (Edge.fitsWith(piece.getLeftEdge(), other.getRightEdge())) {
-                    node.setLayoutX(oNode.getLayoutX() + pieceSize);
-                    node.setLayoutY(oNode.getLayoutY());
-                    if (!other.isLocked() && !piece.isLocked()) {
-                        mergeGroups(piece, other);
-                    }
-                    return;
-                }
-            }
-
-            // Check RIGHT edge attachment
-            dx = node.getLayoutX() + pieceSize - oNode.getLayoutX();
-            dy = Math.abs(node.getLayoutY() - oNode.getLayoutY());
-
-            if (Math.abs(dx) < SNAP_DISTANCE && dy < SNAP_DISTANCE) {
-                if (Edge.fitsWith(piece.getRightEdge(), other.getLeftEdge())) {
-                    node.setLayoutX(oNode.getLayoutX() - pieceSize);
-                    node.setLayoutY(oNode.getLayoutY());
-                    if (!other.isLocked() && !piece.isLocked()) {
-                        mergeGroups(piece, other);
-                    }
-                    return;
-                }
-            }
-
-            // Check TOP edge attachment
-            dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
-            dy = oNode.getLayoutY() + pieceSize - node.getLayoutY();
-
-            if (dx < SNAP_DISTANCE && Math.abs(dy) < SNAP_DISTANCE) {
-                if (Edge.fitsWith(piece.getTopEdge(), other.getBottomEdge())) {
-                    node.setLayoutX(oNode.getLayoutX());
-                    node.setLayoutY(oNode.getLayoutY() + pieceSize);
-                    if (!other.isLocked() && !piece.isLocked()) {
-                        mergeGroups(piece, other);
-                    }
-                    return;
-                }
-            }
-
-            // Check BOTTOM edge attachment
-            dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
-            dy = node.getLayoutY() + pieceSize - oNode.getLayoutY();
-
-            if (dx < SNAP_DISTANCE && Math.abs(dy) < SNAP_DISTANCE) {
-                if (Edge.fitsWith(piece.getBottomEdge(), other.getTopEdge())) {
-                    node.setLayoutX(oNode.getLayoutX());
-                    node.setLayoutY(oNode.getLayoutY() - pieceSize);
-                    if (!other.isLocked() && !piece.isLocked()) {
-                        mergeGroups(piece, other);
-                    }
-                    return;
-                }
-            }
-        }
-    }
-
-    public void mergeGroups(Piece a, Piece b) {
-        int groupA = a.getGroupId();
-        int groupB = b.getGroupId();
-
-        if (groupA == -1 && groupB == -1) {
-            // both ungrouped → assign same id
-            int newGroup = a.hashCode();
-            a.setGroupId(newGroup);
-            b.setGroupId(newGroup);
-            return;
-        }
-
-        if (groupA == -1) {
-            a.setGroupId(groupB);
-            return;
-        }
-
-        if (groupB == -1) {
-            b.setGroupId(groupA);
-            return;
-        }
-
-        // both have groups → merge them
-        int merged = Math.min(groupA, groupB);
-
-        for (Piece p : allPieces) {
-            if (p.getGroupId() == groupA || p.getGroupId() == groupB) {
-                p.setGroupId(merged);
-            }
-        }
-    }
     public void gameOver() {
         Label label = new Label("Congratulations! You have solved the puzzle.");
 
