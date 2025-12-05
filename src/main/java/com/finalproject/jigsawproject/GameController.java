@@ -141,6 +141,8 @@ public class GameController {
                 //assign the true correct position
                 piece.setCorrectPosition(r, c);
 
+                piece.setCorrectRotation(0);
+
                 //random rotation
                 randomRotation = (int)(Math.random() * 4);
                 for (int i = 0; i < randomRotation; i++) {
@@ -369,6 +371,9 @@ public class GameController {
 
             snaps.tryNeighborSnap(piece);
             snaps.snapPieceToBoard(piece, sceneX, sceneY);
+            if (solver.isSolved()) {
+                gameOver();
+            }
         });
     }
 

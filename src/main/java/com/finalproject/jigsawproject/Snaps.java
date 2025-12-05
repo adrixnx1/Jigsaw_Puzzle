@@ -86,10 +86,6 @@ public class Snaps {
         }
 
         solver.setPiece(row, col, piece);
-
-        if (solver.isSolved()) {
-            controller.gameOver();
-        }
     }
 
 

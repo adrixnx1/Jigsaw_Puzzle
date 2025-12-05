@@ -66,8 +66,14 @@ public class Piece {
     }
 
     public boolean isPlacedCorrectly() {
-        return currentRow == correctRow && currentCol == correctCol;
+        int rot = ((int) visual.getRotate()) % 360;
+        if (rot < 0) rot += 360;
+
+        return currentRow == correctRow &&
+                currentCol == correctCol &&
+                rot == correctRotation;
     }
+
 
     // ---------- EDGE GETTERS ----------
 
@@ -199,6 +205,10 @@ public class Piece {
 
     public void setGroupId(int id) {
         this.groupId = id;
+    }
+
+    public void setCorrectRotation(int i) {
+        this.correctRotation = i;
     }
 }
 
