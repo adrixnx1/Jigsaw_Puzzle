@@ -1,23 +1,18 @@
 package com.finalproject.jigsawproject;
 
 import javafx.scene.Node;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
-import javafx.scene.shape.QuadCurveTo;
 
 public class Piece {
 
-    private Edge topEdge;
-    private Edge bottomEdge;
-    private Edge leftEdge;
-    private Edge rightEdge;
+    // ---------- EDGE DATA ----------
+    private final Edge topEdge;
+    private final Edge bottomEdge;
+    private final Edge leftEdge;
+    private final Edge rightEdge;
 
-    private int size;
+    private final int size;
 
+    // ---------- PUZZLE POSITION ----------
     // Correct logical location in the puzzle
     private int correctRow;
     private int correctCol;
@@ -25,14 +20,18 @@ public class Piece {
     // Current placed location (updated when dropped)
     private int currentRow = -1;
     private int currentCol = -1;
+
+    // Grouping (for connected pieces, etc.)
     private int groupId = -1;
 
+    // ---------- VISUAL ----------
+    // Cached shape so we don't rebuild it
+    private final Node visual;
 
-    // Cache the shape so we don't rebuild it
-    private Node visual;
-
+    // ---------- STATE ----------
     private boolean locked = false;
     private int correctRotation = 0;
+    private int currentRotation = 0; // track rotation in the model
 
     public Piece(Edge top, Edge bottom, Edge left, Edge right, int size) {
         this.topEdge = top;
@@ -41,8 +40,8 @@ public class Piece {
         this.rightEdge = right;
         this.size = size;
 
-        // create the shape once
-        this.visual = createShape();
+        // create the shape once (delegated to factory)
+        this.visual = PieceShapeFactory.createShape(topEdge, bottomEdge, leftEdge, rightEdge, size);
     }
 
     // ---------- POSITION TRACKING ----------
@@ -65,15 +64,19 @@ public class Piece {
         this.currentCol = col;
     }
 
-    public boolean isPlacedCorrectly() {
-        int rot = ((int) visual.getRotate()) % 360;
-        if (rot < 0) rot += 360;
-
-        return currentRow == correctRow &&
-                currentCol == correctCol &&
-                rot == correctRotation;
+    public int getCurrentRow() {
+        return currentRow;
     }
 
+    public int getCurrentCol() {
+        return currentCol;
+    }
+
+    public boolean isPlacedCorrectly() {
+        return currentRow == correctRow &&
+               currentCol == correctCol &&
+               currentRotation == correctRotation;
+    }
 
     // ---------- EDGE GETTERS ----------
 
@@ -103,88 +106,14 @@ public class Piece {
         return visual;
     }
 
-    public Node createShape() {
-
-        double s = size;
-        double tab = s * 0.25;   // tab/hole radius
-
-        Path path = new Path();
-        path.setStroke(Color.BLACK);
-        path.setFill(Color.LIGHTGREEN);
-        path.setStrokeWidth(2);
-
-        // start at top-left of piece
-        path.getElements().add(new MoveTo(0, 0));
-
-        // ========== TOP EDGE ==========
-        if (topEdge.getType() == EdgeType.FLAT) {
-            path.getElements().add(new LineTo(s, 0));
-        } else if (topEdge.getType() == EdgeType.TAB) {
-            path.getElements().add(new LineTo(s/3, 0));
-            path.getElements().add(new QuadCurveTo(s/2, -tab, 2*s/3, 0));
-            path.getElements().add(new LineTo(s, 0));
-        } else {  // BLANK
-            path.getElements().add(new LineTo(s/3, 0));
-            path.getElements().add(new QuadCurveTo(s/2, tab, 2*s/3, 0));
-            path.getElements().add(new LineTo(s, 0));
-        }
-
-        // ========== RIGHT EDGE ==========
-        if (rightEdge.getType() == EdgeType.FLAT) {
-            path.getElements().add(new LineTo(s, s));
-        } else if (rightEdge.getType() == EdgeType.TAB) {
-            path.getElements().add(new LineTo(s, s/3));
-            path.getElements().add(new QuadCurveTo(s + tab, s/2, s, 2*s/3));
-            path.getElements().add(new LineTo(s, s));
-        } else { // BLANK
-            path.getElements().add(new LineTo(s, s/3));
-            path.getElements().add(new QuadCurveTo(s - tab, s/2, s, 2*s/3));
-            path.getElements().add(new LineTo(s, s));
-        }
-
-        // ========== BOTTOM EDGE ==========
-        if (bottomEdge.getType() == EdgeType.FLAT) {
-            path.getElements().add(new LineTo(0, s));
-        } else if (bottomEdge.getType() == EdgeType.TAB) {
-            path.getElements().add(new LineTo(2*s/3, s));
-            path.getElements().add(new QuadCurveTo(s/2, s + tab, s/3, s));
-            path.getElements().add(new LineTo(0, s));
-        } else { // BLANK
-            path.getElements().add(new LineTo(2*s/3, s));
-            path.getElements().add(new QuadCurveTo(s/2, s - tab, s/3, s));
-            path.getElements().add(new LineTo(0, s));
-        }
-
-        // ========== LEFT EDGE ==========
-        if (leftEdge.getType() == EdgeType.FLAT) {
-            path.getElements().add(new LineTo(0, 0));
-        } else if (leftEdge.getType() == EdgeType.TAB) {
-            path.getElements().add(new LineTo(0, 2*s/3));
-            path.getElements().add(new QuadCurveTo(-tab, s/2, 0, s/3));
-            path.getElements().add(new LineTo(0, 0));
-        } else { // BLANK
-            path.getElements().add(new LineTo(0, 2*s/3));
-            path.getElements().add(new QuadCurveTo(tab, s/2, 0, s/3));
-            path.getElements().add(new LineTo(0, 0));
-        }
-
-        // Wrap in container
-        Pane pane = new Pane();
-        pane.setPrefSize(s, s);
-        pane.setMinSize(s, s);
-        pane.setMaxSize(s, s);
-        pane.setStyle("-fx-background-color: transparent;");
-        pane.getChildren().add(path);
-        return pane;
-    }
+    // ---------- ROTATION & LOCKING ----------
 
     public void rotateClockwise() {
-        if(locked){
+        if (locked) {
             return;
         }
-        Node shape = getShape();
-        double newAngle = (shape.getRotate() + 90) % 360;
-        shape.setRotate(newAngle);
+        currentRotation = (currentRotation + 90) % 360;
+        visual.setRotate(currentRotation);
     }
 
     public boolean isLocked() {
@@ -199,6 +128,21 @@ public class Piece {
         return correctRotation;
     }
 
+    public void setCorrectRotation(int correctRotation) {
+        this.correctRotation = correctRotation;
+    }
+
+    public int getCurrentRotation() {
+        return currentRotation;
+    }
+
+    public void setCurrentRotation(int currentRotation) {
+        this.currentRotation = currentRotation % 360;
+        visual.setRotate(this.currentRotation);
+    }
+
+    // ---------- GROUPING ----------
+
     public int getGroupId() {
         return groupId;
     }
@@ -207,10 +151,20 @@ public class Piece {
         this.groupId = id;
     }
 
-    public void setCorrectRotation(int i) {
-        this.correctRotation = i;
+    // ---------- DEBUG ----------
+
+    @Override
+    public String toString() {
+        return "Piece{" +
+                "correct=(" + correctRow + "," + correctCol + ")" +
+                ", current=(" + currentRow + "," + currentCol + ")" +
+                ", correctRotation=" + correctRotation +
+                ", currentRotation=" + currentRotation +
+                ", groupId=" + groupId +
+                '}';
     }
 }
-
-
-
+/**
+ * Responsible only for creating the visual shape of a jigsaw piece.
+ * This keeps the Piece class smaller and focused on puzzle logic.
+ */
