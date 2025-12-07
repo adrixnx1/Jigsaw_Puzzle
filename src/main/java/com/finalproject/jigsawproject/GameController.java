@@ -7,6 +7,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -14,6 +15,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,26 +24,21 @@ public class GameController {
 
     private final int gridSize;
 
-    private final GridPane puzzleBoard;   // the blue grid
-    private final Pane boardLayer;        // pieces that are on the board
+    private final GridPane puzzleBoard;   // blue grid
+    private final Pane boardLayer;        // pieces on the board
     private final StackPane gameArea;     // grid + pieces layer (center)
 
-    private ScrollPane trayScroll;        // left side tray scroll
+    private ScrollPane trayScroll;        // left side tray
 
     private Player player;
-    // tracking player + all pieces + solver
     private final List<Piece> allPieces = new ArrayList<>();
-    private  int randomRotation;
-    //private final Player player = new Player("Player 1");
+    private int randomRotation;
     private SolvePuzzle solver;
 
     private Snaps snaps;
-    // piece size matches tile size so it fits each cell
     private final int pieceSize = 150;
 
-    // approximate width of the tray region in the scene, used for deciding
-    // whether a drop happened "on the board"
-    private double traySceneWidth = 260;  // trayPane width + some margin
+    private double traySceneWidth = 260;
 
     public GameController() {
         this.gridSize = 3;
@@ -56,18 +53,18 @@ public class GameController {
 
         this.gameArea = new StackPane(puzzleBoard, boardLayer);
         this.gameArea.setAlignment(Pos.CENTER);
-        this.player = new Player(null,this);
-        // PREVENT StackPane from resizing puzzleBoard
+
+        this.player = new Player(null, this);
+
         puzzleBoard.setPrefSize(pieceSize * gridSize, pieceSize * gridSize);
         puzzleBoard.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         puzzleBoard.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        // ensure it sits centered but NOT resized
         StackPane.setAlignment(puzzleBoard, Pos.CENTER);
 
         setupBoard();
     }
 
-    // Creates the empty puzzle grid (blue background)
+    // Create the blue background grid
     public void setupBoard() {
         double tileSize = pieceSize;
 
@@ -82,12 +79,11 @@ public class GameController {
         }
     }
 
-    // Returns the center game area (grid + board pieces layer)
     public StackPane getGamePanel() {
         return gameArea;
     }
 
-    // Builds left tray with all pieces
+    // Build left tray and all pieces
     public ScrollPane getLeftTray() {
 
         int N = gridSize;
@@ -102,18 +98,34 @@ public class GameController {
         allPieces.clear();
         boardLayer.getChildren().clear();
 
-        double tab = pieceSize * 0.25;
-        double actualHeight = pieceSize + (tab * 2);
+        double actualHeight = pieceSize + 40; // a little extra for shadow
         double spacing = actualHeight + 20;
-
         double currentY = 10;
 
-        // ---------------------------------------------------
-        // 1) BUILD ALL PIECES (original logic)
-        // ---------------------------------------------------
+        // ------------------- LOAD duck.jpg FROM RESOURCES -------------------
+        URL imgUrl = getClass().getResource("/images/duck.jpg");
+        System.out.println("duck.jpg resource URL = " + imgUrl);
+
+        Image puzzleImage = null;
+        if (imgUrl != null) {
+            puzzleImage = new Image(imgUrl.toExternalForm());
+            System.out.println("duck.jpg loaded: error=" + puzzleImage.isError()
+                    + ", width=" + puzzleImage.getWidth()
+                    + ", height=" + puzzleImage.getHeight());
+            if (puzzleImage.isError() || puzzleImage.getWidth() <= 0 || puzzleImage.getHeight() <= 0) {
+                System.out.println("WARNING: duck.jpg invalid, setting puzzleImage = null so pieces go green.");
+                puzzleImage = null;
+            }
+        } else {
+            System.out.println("WARNING: /images/duck.jpg NOT found on classpath; pieces will be green.");
+        }
+
+        // ------------------- BUILD PIECES -------------------
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
 
+                // we still generate edges for snapping logic,
+                // but visually pieces are squares
                 EdgeType topType;
                 if (r == 0) topType = EdgeType.FLAT;
                 else topType = Edge.opposite(pieces[r - 1][c].getBottomEdge().getType());
@@ -135,37 +147,36 @@ public class GameController {
                         new Edge(bottomType),
                         new Edge(leftType),
                         new Edge(rightType),
-                        pieceSize
+                        pieceSize,
+                        puzzleImage,  // <- duck image (or null)
+                        r,   // image row
+                        c,   // image col
+                        N,   // total rows
+                        N    // total cols
                 );
 
-                //assign the true correct position
+                // solved position is same as (r,c)
                 piece.setCorrectPosition(r, c);
-
                 piece.setCorrectRotation(0);
 
-                //random rotation
-                randomRotation = (int)(Math.random() * 4);
+                // Random rotation so user has to rotate
+                randomRotation = (int) (Math.random() * 4);
                 for (int i = 0; i < randomRotation; i++) {
                     piece.rotateClockwise();
                 }
+
                 pieces[r][c] = piece;
                 allPieces.add(piece);
             }
         }
 
-        // ----------------------------------------------
-        // 2) SHUFFLE PIECES
-        // ----------------------------------------------
+        // Shuffle order in the tray
         Collections.shuffle(allPieces);
 
-        // ----------------------------------------------
-        // 3) CLEAR TRAY AND PLACE PIECES IN NEW ORDER
-        // ----------------------------------------------
         tray.getChildren().clear();
         currentY = 10;
 
         for (Piece piece : allPieces) {
-
             Node shape = piece.getShape();
             shape.setLayoutX(10);
             shape.setLayoutY(currentY);
@@ -177,8 +188,9 @@ public class GameController {
 
         tray.setPrefHeight(currentY + 20);
 
-        solver = new SolvePuzzle(allPieces,gridSize);
-        snaps = new Snaps(allPieces,puzzleBoard,boardLayer,solver,gridSize,pieceSize,this);
+        // Solver + snapping helper
+        solver = new SolvePuzzle(allPieces, gridSize);
+        snaps = new Snaps(allPieces, puzzleBoard, boardLayer, solver, gridSize, pieceSize, this);
 
         trayScroll = new ScrollPane(tray);
         trayScroll.setPrefViewportHeight(2000);
@@ -189,63 +201,10 @@ public class GameController {
         trayScroll.setPannable(false);
         trayScroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 
-        assignCorrectPositions();
         return trayScroll;
     }
 
-
-    public void assignCorrectPositions() {
-
-        for (Piece p : allPieces) {
-
-            boolean topFlat    = p.getTopEdge().getType() == EdgeType.FLAT;
-            boolean bottomFlat = p.getBottomEdge().getType() == EdgeType.FLAT;
-            boolean leftFlat   = p.getLeftEdge().getType() == EdgeType.FLAT;
-            boolean rightFlat  = p.getRightEdge().getType() == EdgeType.FLAT;
-
-            // ----- CORNERS -----
-            if (topFlat && leftFlat) {
-                p.setCorrectPosition(0, 0);       // top-left corner
-            } else if (topFlat && rightFlat) {
-                p.setCorrectPosition(0, 2);  // top-right corner
-            } else if (bottomFlat && leftFlat) {
-                p.setCorrectPosition(2, 0); // bottom-left
-            } else if (bottomFlat && rightFlat) {
-                p.setCorrectPosition(2, 2); // bottom-right
-            }
-
-            // ----- EDGES -----
-            else if (topFlat) {
-                p.setCorrectPosition(0, 1);  // top edge
-            }
-            else if (bottomFlat) {
-                p.setCorrectPosition(gridSize-1, 1); // bottom edge
-            }
-            else if (leftFlat) {
-                p.setCorrectPosition(1, 0);  // left edge
-            }
-            else if (rightFlat) {
-                p.setCorrectPosition(1, gridSize-1); // right edge
-            }
-
-            // ----- CENTER -----
-            else {
-                p.setCorrectPosition(1, 1);
-            }
-        }
-        //FOR NOW
-        for (int i = 0; i < allPieces.size(); i++) {
-            Piece p = allPieces.get(i);
-            int pieceNumber = i + 1;
-            System.out.println("Piece " + pieceNumber + " assigned to ("
-                    + p.getCorrectRow() + "," + p.getCorrectCol() + ")");
-        }
-    }
-
-
-
-
-    // ----------------- DRAG / DROP HELPERS -----------------
+    // ----------------- DRAG / DROP -----------------
 
     public void addDragHandlers(Piece piece, Pane tray) {
         Node node = piece.getShape();
@@ -253,7 +212,7 @@ public class GameController {
         final double[] offset = new double[2];
 
         node.setOnMousePressed(event -> {
-            if (piece.isLocked()){
+            if (piece.isLocked()) {
                 return;
             }
 
@@ -268,61 +227,52 @@ public class GameController {
 
         node.setOnMouseDragged(event -> {
 
-            if (piece.isLocked()){
+            if (piece.isLocked()) {
                 return;
             }
 
             double sceneX = event.getSceneX();
             double sceneY = event.getSceneY();
 
-            // convert mouse → parent coordinates
             Point2D parentPoint = node.getParent().sceneToLocal(sceneX, sceneY);
 
             double newX = parentPoint.getX() - offset[0];
             double newY = parentPoint.getY() - offset[1];
 
-            // detect moving from tray → board
             double trayRight = trayScroll.localToScene(trayScroll.getBoundsInLocal()).getMaxX();
 
+            // Moving from tray → board
             if (sceneX > trayRight && node.getParent() == tray) {
 
-                // Convert the piece's current position TO SCENE, not the mouse!
                 Bounds nodeBounds = node.localToScene(node.getBoundsInLocal());
                 double pieceSceneX = nodeBounds.getMinX();
                 double pieceSceneY = nodeBounds.getMinY();
 
-                // Convert that scene position into boardLayer coordinates
                 Point2D newLocal = boardLayer.sceneToLocal(pieceSceneX, pieceSceneY);
 
                 tray.getChildren().remove(node);
                 boardLayer.getChildren().add(node);
 
-                // Now compute new top-left inside boardLayer
                 Bounds local = node.localToScene(node.getBoundsInLocal());
                 double offsetX = local.getWidth() / 2;
                 double offsetY = local.getHeight() / 2;
 
-                // Set correct layout
                 node.setLayoutX(newLocal.getX() - offsetX);
                 node.setLayoutY(newLocal.getY() - offsetY);
 
-                // Place it in the same visual location
-                //node.setLayoutX(newLocal.getX());
-                //node.setLayoutY(newLocal.getY());
                 double minVisibleX = trayRight - boardLayer.localToScene(0, 0).getX() + 10;
                 if (node.getLayoutX() < minVisibleX) {
                     node.setLayoutX(minVisibleX);
                 }
 
                 return;
-
             }
 
+            // Normal dragging inside current parent
             Point2D p = node.getParent().sceneToLocal(sceneX, sceneY);
             newX = p.getX() - offset[0];
             newY = p.getY() - offset[1];
 
-            // clamp only inside tray
             if (node.getParent() == tray) {
                 double maxX = tray.getPrefWidth() - pieceSize - 10;
                 double maxY = tray.getPrefHeight() - pieceSize - 10;
@@ -334,11 +284,9 @@ public class GameController {
             int gid = piece.getGroupId();
 
             if (gid == -1) {
-                // move only this piece
                 node.setLayoutX(newX);
                 node.setLayoutY(newY);
             } else {
-                // move entire group
                 double deltaX = newX - node.getLayoutX();
                 double deltaY = newY - node.getLayoutY();
 
@@ -349,7 +297,6 @@ public class GameController {
                         n.setLayoutY(n.getLayoutY() + deltaY);
                     }
                 }
-
             }
 
         });
@@ -359,18 +306,24 @@ public class GameController {
             double sceneX = event.getSceneX();
             double sceneY = event.getSceneY();
 
+            // Click without drag = rotate
             if (event.isStillSincePress()) {
                 piece.rotateClockwise();
                 return;
             }
 
+            // If outside board, drop back into tray
             if (!isInsideBoard(sceneX, sceneY)) {
                 movePieceBackToTray(piece, tray, sceneX, sceneY);
                 return;
             }
 
+            // Try to snap to neighbors (group forming)
             snaps.tryNeighborSnap(piece);
+
+            // Snap to board only if it's exactly correct (row/col + rotation)
             snaps.snapPieceToBoard(piece, sceneX, sceneY);
+
             if (solver.isSolved()) {
                 gameOver();
             }
@@ -378,48 +331,38 @@ public class GameController {
     }
 
     public void movePieceBackToTray(Piece piece, Pane tray, double sceneX, double sceneY) {
-        if (piece.isLocked()){
+        if (piece.isLocked()) {
             return;
         }
         Node node = piece.getShape();
 
-        // Remove from board and add back to tray
         boardLayer.getChildren().remove(node);
         tray.getChildren().add(node);
 
         node.toFront();
 
-        // Reset translate so we rely on layout positions
         node.setTranslateX(0);
         node.setTranslateY(0);
 
-        // Convert the mouse drop position into tray coordinates
         Point2D trayPoint = tray.sceneToLocal(sceneX, sceneY);
 
-        // Position the piece CENTERED at that spot
         double newX = trayPoint.getX() - pieceSize / 2;
         double newY = trayPoint.getY() - pieceSize / 2;
 
-        // Clamp inside tray (left/right)
         if (newX < 0) newX = 10;
         if (newX > tray.getPrefWidth() - pieceSize - 10)
             newX = tray.getPrefWidth() - pieceSize - 10;
 
-        // No need to clamp Y too much — but prevent negative
         if (newY < 0) newY = 10;
 
         node.setLayoutX(newX);
         node.setLayoutY(newY);
 
-        // Reset puzzle state
         piece.setCurrentPosition(-1, -1);
 
-        // Ensure ScrollPane scrolls to show the piece
         trayScroll.layout();
         trayScroll.setVvalue(newY / tray.getHeight());
     }
-
-
 
     public boolean isInsideBoard(double sceneX, double sceneY) {
         Bounds b = puzzleBoard.localToScene(puzzleBoard.getBoundsInLocal());
@@ -427,29 +370,24 @@ public class GameController {
     }
 
     public void gameOver() {
-        Label label = new Label("Congratulations! You have solved the puzzle.");
+        Label label = new Label("Congratulations! You did it!");
 
         label.setStyle(
                 "-fx-font-size: 36px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: black;" +
-                        "-fx-background-color: #ffffff;" +
-                        "-fx-padding: 20px;" +
-                        "-fx-background-radius: 10px;"
+                "-fx-font-weight: bold;" +
+                "-fx-text-fill: black;" +
+                "-fx-background-color: #ffffff;" +
+                "-fx-padding: 20px;" +
+                "-fx-background-radius: 10px;"
         );
 
         StackPane overlay = new StackPane(label);
         overlay.setAlignment(Pos.CENTER);
-
         overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
-
         overlay.setPrefSize(gameArea.getWidth(), gameArea.getHeight());
 
-        // VERY IMPORTANT: add overlay to the gameArea
         gameArea.getChildren().add(overlay);
         overlay.toFront();
     }
 
-
 }
-

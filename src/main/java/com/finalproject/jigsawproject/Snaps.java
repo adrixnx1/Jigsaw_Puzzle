@@ -36,15 +36,14 @@ public class Snaps {
         this.controller = controller;
     }
 
-
     // -------------------- SNAP TO BOARD -------------------- //
     public void snapPieceToBoard(Piece piece, double sceneX, double sceneY) {
 
         Node node = piece.getShape();
         Point2D boardPoint = puzzleBoard.sceneToLocal(sceneX, sceneY);
 
-        int col = (int)(boardPoint.getX() / pieceSize);
-        int row = (int)(boardPoint.getY() / pieceSize);
+        int col = (int) (boardPoint.getX() / pieceSize);
+        int row = (int) (boardPoint.getY() / pieceSize);
 
         // Bounds check
         if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) return;
@@ -53,26 +52,24 @@ public class Snaps {
         if (row != piece.getCorrectRow() || col != piece.getCorrectCol()) return;
 
         // Check rotation
-        int rot = ((int)node.getRotate()) % 360;
+        int rot = ((int) node.getRotate()) % 360;
         if (rot < 0) rot += 360;
         if (rot != piece.getCorrectRotation()) return;
 
-        // Assign position
-        piece.setCurrentPosition(row, col);
-
-        // Assign group ID if needed
-        if (piece.getGroupId() == -1)
+        // If this piece has no group yet, give it one
+        if (piece.getGroupId() == -1) {
             piece.setGroupId(piece.hashCode());
-
+        }
         int gid = piece.getGroupId();
 
-        // Snap the entire group into its correct final places
+        // Place ALL pieces in the same group into their correct final spots
         for (Piece gp : allPieces) {
             if (gp.getGroupId() == gid) {
 
                 int r = gp.getCorrectRow();
                 int c = gp.getCorrectCol();
 
+                // Convert board (c*size, r*size) into boardLayer coordinates
                 Point2D target = boardLayer.sceneToLocal(
                         puzzleBoard.localToScene(c * pieceSize, r * pieceSize)
                 );
@@ -81,13 +78,15 @@ public class Snaps {
                 gNode.setLayoutX(target.getX());
                 gNode.setLayoutY(target.getY());
 
+                // Mark its logical position & lock
+                gp.setCurrentPosition(r, c);
                 gp.lock();
+
+                // Tell the solver this cell is now correctly filled
+                solver.setPiece(r, c, gp);
             }
         }
-
-        solver.setPiece(row, col, piece);
     }
-
 
     // -------------------- SNAP NEIGHBORS -------------------- //
     public void tryNeighborSnap(Piece piece) {
@@ -101,7 +100,7 @@ public class Snaps {
 
             double dx, dy;
 
-            // LEFT
+            // LEFT neighbor (other is on the left of piece)
             dx = oNode.getLayoutX() + pieceSize - node.getLayoutX();
             dy = Math.abs(oNode.getLayoutY() - node.getLayoutY());
 
@@ -114,7 +113,7 @@ public class Snaps {
                 return;
             }
 
-            // RIGHT
+            // RIGHT neighbor (other is on the right of piece)
             dx = node.getLayoutX() + pieceSize - oNode.getLayoutX();
             dy = Math.abs(node.getLayoutY() - oNode.getLayoutY());
 
@@ -127,7 +126,7 @@ public class Snaps {
                 return;
             }
 
-            // TOP
+            // TOP neighbor (other is above piece)
             dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
             dy = oNode.getLayoutY() + pieceSize - node.getLayoutY();
 
@@ -140,7 +139,7 @@ public class Snaps {
                 return;
             }
 
-            // BOTTOM
+            // BOTTOM neighbor (other is below piece)
             dx = Math.abs(node.getLayoutX() - oNode.getLayoutX());
             dy = node.getLayoutY() + pieceSize - oNode.getLayoutY();
 
@@ -155,7 +154,6 @@ public class Snaps {
         }
     }
 
-
     // -------------------- MERGE GROUPS -------------------- //
     public void mergeGroups(Piece a, Piece b) {
 
@@ -169,8 +167,14 @@ public class Snaps {
             return;
         }
 
-        if (ga == -1) { a.setGroupId(gb); return; }
-        if (gb == -1) { b.setGroupId(ga); return; }
+        if (ga == -1) {
+            a.setGroupId(gb);
+            return;
+        }
+        if (gb == -1) {
+            b.setGroupId(ga);
+            return;
+        }
 
         int merged = Math.min(ga, gb);
 
