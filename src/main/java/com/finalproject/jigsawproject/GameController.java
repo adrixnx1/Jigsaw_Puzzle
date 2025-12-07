@@ -37,6 +37,7 @@ public class GameController {
 
     private Snaps snaps;
     private final int pieceSize = 150;
+    private PieceShapeFactory pieceFactory;
 
     private double traySceneWidth = 260;
 
@@ -292,7 +293,7 @@ public class GameController {
 
                 for (Piece groupedPiece : allPieces) {
                     if (groupedPiece.getGroupId() == gid) {
-                        Node n = groupedPiece.getShape();
+                        Node n = piece.getShape();
                         n.setLayoutX(n.getLayoutX() + deltaX);
                         n.setLayoutY(n.getLayoutY() + deltaY);
                     }

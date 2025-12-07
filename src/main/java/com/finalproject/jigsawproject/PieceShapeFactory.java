@@ -1,8 +1,10 @@
 package com.finalproject.jigsawproject;
 
 import javafx.scene.Node;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
@@ -18,11 +20,18 @@ public final class PieceShapeFactory {
         // utility class - no instances
     }
 
-    public static Node createShape(Edge topEdge,
-                                   Edge bottomEdge,
-                                   Edge leftEdge,
-                                   Edge rightEdge,
-                                   int size) {
+    public static Node createShape(
+            Edge topEdge,
+            Edge bottomEdge,
+            Edge leftEdge,
+            Edge rightEdge,
+            int size,
+            Image puzzleImage,
+            int imageRow,
+            int imageCol,
+            int totalRows,
+            int totalCols
+    ) {
 
         double s = size;
         double tab = s * 0.25;   // tab/hole radius
@@ -85,6 +94,23 @@ public final class PieceShapeFactory {
             path.getElements().add(new LineTo(0, 2 * s / 3));
             path.getElements().add(new QuadCurveTo(tab, s / 2, 0, s / 3));
             path.getElements().add(new LineTo(0, 0));
+        }
+
+        if (puzzleImage != null) {
+            double pw = puzzleImage.getWidth() / totalCols;
+            double ph = puzzleImage.getHeight() / totalRows;
+
+            ImagePattern pattern = new ImagePattern(
+                    puzzleImage,
+                    imageCol * pw,
+                    imageRow * ph,
+                    pw,
+                    ph,
+                    false
+            );
+            path.setFill(pattern);
+        } else {
+            path.setFill(Color.LIGHTGREEN);
         }
 
         // Wrap in container

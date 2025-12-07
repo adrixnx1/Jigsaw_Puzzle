@@ -17,6 +17,8 @@ public class Piece {
     private Edge rightEdge;
 
     private int size;
+    //PieceShapeFactory pieceFactory;
+    private Node visual;
 
     // Correct logical location in the puzzle
     private int correctRow;
@@ -26,9 +28,6 @@ public class Piece {
     private int currentRow = -1;
     private int currentCol = -1;
     private int groupId = -1;
-
-    // Visual node (cached)
-    private Node visual;
 
     private boolean locked = false;
     private int correctRotation = 0;
@@ -63,6 +62,19 @@ public class Piece {
         this.totalRows = totalRows;
         this.totalCols = totalCols;
 
+        this.visual = PieceShapeFactory.createShape(
+                topEdge,
+                bottomEdge,
+                leftEdge,
+                rightEdge,
+                size,
+                puzzleImage,
+                imageRow,
+                imageCol,
+                totalRows,
+                totalCols
+        );
+
         if (puzzleImage == null) {
             System.out.println("Piece created with puzzleImage = null");
         } else {
@@ -70,7 +82,7 @@ public class Piece {
                     + puzzleImage.getWidth() + " x " + puzzleImage.getHeight());
         }
 
-        this.visual = createShape();
+        //this.visual = pieceFactory.createShape();
     }
 
     // ---------- POSITION TRACKING ----------
@@ -110,86 +122,7 @@ public class Piece {
                rot == correctRotation;
     }
 
-    // ---------- EDGE GETTERS ----------
 
-    public Edge getTopEdge() {
-        return topEdge;
-    }
-
-    public Edge getBottomEdge() {
-        return bottomEdge;
-    }
-
-    public Edge getLeftEdge() {
-        return leftEdge;
-    }
-
-    public Edge getRightEdge() {
-        return rightEdge;
-    }
-
-    public int getSize() {
-        return size;
-    }
-
-    // ---------- VISUAL ----------
-
-    public Node getShape() {
-        return visual;
-    }
-
-    private Node createShape() {
-        double s = size;
-
-        StackPane pane = new StackPane();
-        pane.setPrefSize(s, s);
-        pane.setMinSize(s, s);
-        pane.setMaxSize(s, s);
-
-        // Soft shadow around the whole tile
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(5);
-        shadow.setOffsetX(2);
-        shadow.setOffsetY(2);
-        shadow.setColor(Color.rgb(0, 0, 0, 0.4));
-        pane.setEffect(shadow);
-
-        // If puzzleImage is null, show green fallback
-        if (puzzleImage == null) {
-            Rectangle fallback = new Rectangle(s, s);
-            fallback.setFill(Color.LIGHTGREEN);
-            fallback.setStroke(Color.BLACK);
-            fallback.setStrokeWidth(2);
-            pane.getChildren().add(fallback);
-            System.out.println("Using green fallback for piece (puzzleImage == null).");
-            return pane;
-        }
-
-        // 1) Slice out the correct square from the big image
-        ImageView imageView = new ImageView(puzzleImage);
-
-        double pieceWidth = puzzleImage.getWidth() / totalCols;
-        double pieceHeight = puzzleImage.getHeight() / totalRows;
-
-        double viewX = imageCol * pieceWidth;
-        double viewY = imageRow * pieceHeight;
-
-        imageView.setViewport(new Rectangle2D(viewX, viewY, pieceWidth, pieceHeight));
-        imageView.setFitWidth(s);
-        imageView.setFitHeight(s);
-        imageView.setPreserveRatio(false);
-        imageView.setSmooth(true);
-
-        // 2) White border to see edges
-        Rectangle border = new Rectangle(s, s);
-        border.setFill(Color.TRANSPARENT);
-        border.setStroke(Color.WHITE);
-        border.setStrokeWidth(2);
-
-        pane.getChildren().addAll(imageView, border);
-
-        return pane;
-    }
 
     // ---------- ROTATION & LOCKING ----------
 
@@ -224,6 +157,26 @@ public class Piece {
 
     public void setGroupId(int id) {
         this.groupId = id;
+    }
+
+    public Node getShape(){
+        return visual;
+    }
+
+    public Edge getBottomEdge() {
+        return bottomEdge;
+    }
+
+    public Edge getRightEdge() {
+        return rightEdge;
+    }
+
+    public Edge getTopEdge() {
+        return topEdge;
+    }
+
+    public Edge getLeftEdge() {
+        return leftEdge;
     }
 }
 
