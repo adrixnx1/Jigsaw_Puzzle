@@ -287,18 +287,28 @@ public class GameController {
             if (gid == -1) {
                 node.setLayoutX(newX);
                 node.setLayoutY(newY);
-            } else {
-                double deltaX = newX - node.getLayoutX();
-                double deltaY = newY - node.getLayoutY();
+            }  else {
+            double oldX = node.getLayoutX();
+            double oldY = node.getLayoutY();
 
-                for (Piece groupedPiece : allPieces) {
-                    if (groupedPiece.getGroupId() == gid) {
-                        Node n = piece.getShape();
-                        n.setLayoutX(n.getLayoutX() + deltaX);
-                        n.setLayoutY(n.getLayoutY() + deltaY);
-                    }
+            // Move the dragged piece first
+            node.setLayoutX(newX);
+            node.setLayoutY(newY);
+
+            double deltaX = newX - oldX;
+            double deltaY = newY - oldY;
+
+            // Move the rest of the group by the same delta
+            for (Piece groupedPiece : allPieces) {
+                if (groupedPiece.getGroupId() == gid && groupedPiece != piece) {
+                    Node n = groupedPiece.getShape();
+                    n.setLayoutX(n.getLayoutX() + deltaX);
+                    n.setLayoutY(n.getLayoutY() + deltaY);
                 }
             }
+        }
+
+
 
         });
 
